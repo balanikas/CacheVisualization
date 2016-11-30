@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+    <title>Http runtime cache</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"
+            integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+            crossorigin="anonymous"></script>
+    <style>
+        canvas {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        .fixed {
+            width: 300px;
+            border: 1px solid;
+            border-radius: 4px;
+        }
+
+        .flex-item {
+            flex-grow: 1;
+        }
+
+        .centered {
+            width: 90%;
+            padding: 5px;
+        }
+
+        .search-result {
+            word-wrap: break-word;
+        }
+
+        #searchResults {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+            #searchResults li {
+                border: 1px solid #ddd;
+                margin-top: -1px;
+                background-color: #f6f6f6;
+                padding: 4px;
+                text-decoration: none;
+                color: black;
+                display: block;
+            }
+
+                #searchResults li:hover:not(.header) {
+                    background-color: #eee;
+                }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="fixed">
+            <div class="centered">
+                Autoupdate: <input type="checkbox" id="autoUpdate">
+            </div>
+            <input type="text" class="centered" list="cachekeys" id="searchBox" onkeypress="return search(event)" placeholder="Enter a cache key">
+            <ul class='search-result' id="searchResults"></ul>
+            <datalist id="cachekeys"></datalist>
+        </div>
+        <div class="flex-item">
+            <canvas class="content" id="canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+
+    var config = {
+        type: 'line',
+        data: null,
+        options: {
+            responsive: true,
+            animation: false,
+            title: {
+                display: true,
+                fontSize: 18,
+                text: 'HttpRuntime Cache'
+            },
+            legend: {
+                position: 'left'
+            },
+            tooltips: {
+                mode: 'point',
+                intersect: false,
+            },
+            hover: {
+                mode: 'index',
+                intersect: true
+            },
+            scales: {
+                xAxes: [
+                    {
+                        display: true,
+                        fontSize: 6,
+
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'timeline'
+                        }
+                    }
+                ],
+                yAxes: [
+                    {
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'items in cache key group'
+                        }
+                    }
+                ]
+            }
+        }
+    };
+
+    var chart = null;
+
+    window.onload = function() {
+        $.getJSON("data.json",
+            function(json) {
+                updateChart(json);
+                updateSearchKeys(json);
+                window.setInterval(getData, 1000);
+            });
+    };
+
+    function search(e) {
+        if (e.keyCode !== 13) {
+            return true;
+        }
+
+        var input = $('#searchBox').val();
+
+        $("#searchResults").html("");
+        for (var i = 0; i < config.data.datasets.length; i++) {
+            var dataSet = config.data.datasets[i];
+            if (dataSet.label.startsWith(input)) {
+                for (var j = 0; j < dataSet.values.length; j++) {
+                    $("#searchResults").append("<li >" + dataSet.values[j] + "</li>");
+                }
+                break;
+            }
+        }
+    }
+
+    function getData() {
+        if (document.getElementById("autoUpdate").checked) {
+            $.getJSON("data.json",
+                function(json) {
+                    updateChart(json);
+                    updateSearchKeys(json);
+                });
+        }
+    }
+
+    function updateChart(data) {
+        config.data = data;
+        if (chart) {
+            chart.destroy();
+        }
+        var ctx = document.getElementById("canvas").getContext("2d");
+        chart = new Chart(ctx, config);
+    }
+
+    function updateSearchKeys(data) {
+        var html = "";
+        for (var i = 0; i < data.datasets.length; i++) {
+            var key = data.datasets[i].label;
+            html += "<option value='" + key + "'>";
+            document.getElementById('cachekeys').innerHTML = html;
+        }
+    }
+    </script>
+</body>
+</html>
